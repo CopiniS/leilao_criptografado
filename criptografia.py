@@ -1,12 +1,12 @@
 
 def criptografaSimetrica(textoClaro: str) -> str:
-    pass
+    return textoClaro
 
-def descriptogradfaSimetrica(textoCriptografado: str) -> str:
-    pass
+def descriptografaSimetrica(textoCriptografado: str) -> str:
+    return textoCriptografado
 
 def criptografaAssimetrica(textoClaro: str) -> str:
-    pass
+    return textoClaro
 
-def descriptogradfaAsimetrica(textoCriptografado: str) -> str:
-    pass
+def descriptografaAsimetrica(textoCriptografado: str) -> str:
+    return textoCriptografado
