@@ -1,10 +1,7 @@
 import socket
 import struct
 import threading
-from datetime import timedelta, datetime
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes
-import os
+from datetime import timedelta
 
 class Server:
     def __init__(self, host: str, port: int):
@@ -13,7 +10,6 @@ class Server:
         self.clients = {}
         self.item_leilao = None
         self.leilao_ativo = False
-        self.chave_simetrica = os.urandom(32)  # Chave AES de 256 bits
         self.multicast_address = None
         self.multicast_socket = None
 
@@ -25,7 +21,6 @@ class Server:
         print(f"Canal multicast criado: {grupo_multicast}:{porta_multicast}")
 
     def publica_item(self, nome: str, lance_inicial: float, step_lances: float, tempo_em_segundos: int):
-        # Criar canal multicast ao publicar o produto
         self.cria_multicast()
 
         self.item_leilao = {
@@ -39,7 +34,6 @@ class Server:
         self.leilao_ativo = True
         print(f"Item publicado: {self.item_leilao}")
 
-        # Iniciar threads para gerenciar tempo e escutar lances
         threading.Thread(target=self.gerencia_tempo).start()
         threading.Thread(target=self.escuta_lances).start()
 
@@ -50,7 +44,7 @@ class Server:
             self.envia_atualizacao()
             tempo_restante -= timedelta(seconds=1)
             self.item_leilao["tempo"] = tempo_restante
-            threading.Event().wait(1)  # Espera de 1 segundo
+            threading.Event().wait(1)
 
         self.leilao_ativo = False
         self.envia_atualizacao(finalizado=True)
@@ -119,9 +113,7 @@ class Server:
     def handle_client(self, conn, addr):
         data = conn.recv(1024)
         print(f"Mensagem recebida: {data.decode()}")
-        # Aqui processamos e validamos o cliente, enviamos a chave simétrica
         conn.close()
-
 
 if __name__ == "__main__":
     server = Server("127.0.0.1", 65432)

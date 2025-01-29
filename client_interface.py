@@ -1,51 +1,94 @@
-# client_interface.py
 import tkinter as tk
-from client import Client
+from tkinter import messagebox
+from threading import Thread
+import time
+from client import Client  # Importa a classe Client
 
-def conectar_servidor():
-    host = entry_host.get()
-    port = int(entry_port.get())
+class AuctionClientInterface:
+    def __init__(self):
+        self.client = Client("127.0.0.1", 65432, self.load_private_key())
+        self.root = tk.Tk()
+        self.root.title("Cliente de Leilão")
+        self.create_access_screen()
+    
+    def load_private_key(self):
+        with open("chave_privada.pem", "rb") as f:
+            return f.read()
+    
+    def create_access_screen(self):
+        self.clear_screen()
+        tk.Label(self.root, text="Acessar Leilão", font=("Arial", 16)).pack(pady=10)
+        
+        tk.Label(self.root, text="CPF:").pack()
+        self.cpf_entry = tk.Entry(self.root)
+        self.cpf_entry.pack()
+        
+        tk.Button(self.root, text="Acessar", command=self.access_auction).pack(pady=10)
+    
+    def access_auction(self):
+        cpf = self.cpf_entry.get()
+        if not cpf:
+            messagebox.showerror("Erro", "Digite um CPF válido.")
+            return
+        
+        self.client.envia_requisicao_entrada(cpf)
+        
+        if self.client.multicast_address:
+            self.create_auction_screen()
+        else:
+            messagebox.showerror("Erro", "Falha ao acessar leilão.")
+    
+    def create_auction_screen(self):
+        self.clear_screen()
+        tk.Label(self.root, text="Leilão Ativo", font=("Arial", 16)).pack(pady=10)
+        
+        self.label_tempo = tk.Label(self.root, text="Tempo restante: 00:00", font=("Arial", 14))
+        self.label_tempo.pack()
+        
+        self.label_produto = tk.Label(self.root, text="Produto: Carregando...", font=("Arial", 14))
+        self.label_produto.pack()
+        
+        self.label_lance = tk.Label(self.root, text="Lance atual: Carregando...", font=("Arial", 14))
+        self.label_lance.pack()
+        
+        tk.Label(self.root, text="Seu lance:").pack()
+        self.lance_entry = tk.Entry(self.root)
+        self.lance_entry.pack()
+        
+        tk.Button(self.root, text="Enviar Lance", command=self.send_bid).pack(pady=10)
+        
+        # Iniciar thread para receber dados do leilão
+        Thread(target=self.update_auction_data, daemon=True).start()
+    
+    def update_auction_data(self):
+        while True:
+            try:
+                data = self.client.recebe_infos_produto_leiloado()
+                if data:
+                    produto, tempo, valor = data.split('|')
+                    self.label_produto.config(text=f"Produto: {produto}")
+                    self.label_tempo.config(text=f"Tempo restante: {tempo}")
+                    self.label_lance.config(text=f"Lance atual: {valor}")
+            except Exception as e:
+                print(f"Erro ao atualizar leilão: {e}")
+            time.sleep(1)
+    
+    def send_bid(self):
+        lance = self.lance_entry.get()
+        if not lance.isnumeric():
+            messagebox.showerror("Erro", "Digite um valor válido para o lance.")
+            return
+        
+        # Simulação de envio de lance (implementar na classe Client)
+        print(f"Enviando lance: {lance}")
+        
+    def clear_screen(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+    
+    def run(self):
+        self.root.mainloop()
 
-    cliente = Client()
-    output_text.insert(tk.END, f"Conectando ao servidor {host}:{port}...\n")
-
-    # Conecta ao servidor (chama a função principal do cliente)
-    cliente.main(host, port)
-
-def enviar_lance():
-    valor_lance = entry_lance.get()
-    output_text.insert(tk.END, f"Lance enviado: R${valor_lance}\n")
-
-    # Aqui você poderia chamar uma função específica do cliente para enviar o lance
-
-# Configuração da janela principal
-top = tk.Tk()
-top.title("Cliente de Leilão")
-
-# Campos para configurar a conexão com o servidor
-tk.Label(top, text="Host do Servidor:").pack()
-entry_host = tk.Entry(top)
-entry_host.insert(0, "127.0.0.1")
-entry_host.pack()
-
-tk.Label(top, text="Porta do Servidor:").pack()
-entry_port = tk.Entry(top)
-entry_port.insert(0, "65432")
-entry_port.pack()
-
-tk.Button(top, text="Conectar ao Servidor", command=conectar_servidor).pack()
-
-# Campos para enviar lances
-tk.Label(top, text="Valor do Lance:").pack()
-entry_lance = tk.Entry(top)
-entry_lance.pack()
-
-tk.Button(top, text="Enviar Lance", command=enviar_lance).pack()
-
-# Saída de logs
-tk.Label(top, text="Logs:").pack()
-output_text = tk.Text(top, height=10, width=50)
-output_text.pack()
-
-# Inicia o loop da interface
-top.mainloop()
+if __name__ == "__main__":
+    app = AuctionClientInterface()
+    app.run()
