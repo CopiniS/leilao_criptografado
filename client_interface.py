@@ -32,7 +32,6 @@ class LeilaoCliente:
             messagebox.showerror("Erro", "CPF não pode estar vazio.")
             return
         
-        # Simula o envio para o servidor
         if self.client.envia_requisicao_entrada():
             self.multicast_endereco = resposta["endereco_multicast"]
             self.chave = resposta["chave_simetrica"]

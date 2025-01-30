@@ -15,6 +15,11 @@ class Server:
         self.multicast_address = None
         self.multicast_socket = None
 
+        with open('participantes.json', 'r', encoding='utf-8') as file:
+            self.participantes = json.load(file)['participantes']
+            self.chave_simetrica = json.load(file)['chave_simetrica']
+
+
     def cria_multicast(self, grupo_multicast="224.0.0.1", porta_multicast=5007):
         self.multicast_address = (grupo_multicast, porta_multicast)
         self.multicast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -68,24 +73,30 @@ class Server:
 
         while self.leilao_ativo:
             data, addr = recepcao_socket.recvfrom(1024)
-            mensagem = data.decode("utf-8")
+            textoCriptografado = data.decode("utf-8")
+            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
+            dados_json = json.loads(textoClaro)
             print(f"Mensagem recebida de {addr}: {mensagem}")
-            self.processa_lance(mensagem, addr)
+            resposta = self.processa_lance(dados_json, addr)
 
-    def processa_lance(self, mensagem: str, addr):
-        try:
-            lance, usuario = mensagem.split(":")
-            lance = float(lance)
-            
-            if lance > self.item_leilao["maior_lance"]:
-                self.item_leilao["maior_lance"] = lance
-                self.item_leilao["usuario"] = usuario
-                print(f"Novo maior lance: {lance} de {usuario}")
-                self.envia_atualizacao()
-            else:
-                print(f"Lance rejeitado: {lance} é menor ou igual ao maior lance atual.")
-        except ValueError:
-            print(f"Formato de mensagem inválido: {mensagem}")
+            textoClaro = json.loads(resposta)
+            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
+            # Envia resposta apenas para o remetente do lance
+            recepcao_socket.sendto(textoCriptografado.encode("utf-8"), addr)
+
+            self.envia_atualizacao()
+
+    def processa_lance(self, dados_json, addr):
+        lance = dados_json['lance']
+
+        if lance < self.item_leilao['maior_lance'] + self.item_leilao['step_lances']:
+            return {'sucesso': False, 'erro': '[ERRO]: Lance enviado menor do que o obrigatório', 'data': None}
+
+        self.item_leilao["maior_lance"] = lance
+        resultado = next((participante for participante in self.participantes if participante["addres"] == addr), None)
+        self.item_leilao["usuario"] = resultado['cpf']
+        print(f"Novo maior lance: {lance} de {resultado}")
+        return {'sucesso': True, 'erro': None, 'data': None}
 
     def envia_atualizacao(self, finalizado=False):
         resposta = {}
@@ -94,9 +105,6 @@ class Server:
             resposta {'sucesso': False, 'erro': 'Canal multicast não configurado para envio', 'data': None}
 
         else:
-            with open('participantes.json', 'r', encoding='utf-8') as file:
-            chave_simetrica = json.load(file)['chave_simetrica']
-
             status = {
                 "produto": self.item_leilao["nome"],
                 "maior_lance": self.item_leilao["maior_lance"],
@@ -108,7 +116,7 @@ class Server:
             resposta = {'sucesso': True, 'erro': None, 'data': status}
 
         textoClaro = json.dumps(resposta)
-        textoCriptografado = criptografia.criptografaSimetrica(textoClaro, chave_simetrica)
+        textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
 
         self.multicast_socket.sendto(textoCriptografado.encode('utf-8'), self.multicast_address)
 
@@ -120,17 +128,14 @@ class Server:
 
         dados_json = json.loads(data) 
 
-        with open('participantes.json', 'r', encoding='utf-8') as file:
-            participantes = json.load(file)['participantes']
-            chave_simetrica = json.load(file)['chave_simetrica']
-
-        resultado = next((participante for participante in participantes if participante["cpf"] == dados_json['cpf']), None)
+        resultado = next((participante for participante in self.participantes if participante["cpf"] == dados_json['cpf']), None)
 
         if not resultado:
             resposta = {'sucesso': False, 'erro': 'CPF não cadastrado', 'data': None}
 
         else:
-            resposta = {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': chave_simetrica, 'endereco_multicast': self.multicast_address}}
+            resultado['addres'] = addr
+            resposta = {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': self.chave_simetrica, 'endereco_multicast': self.multicast_address}}
 
         textoClaro = json.dumps(resposta)
         textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])

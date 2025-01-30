@@ -11,6 +11,7 @@ class Client:
         self.multicast_address = None
         self.chave_simetrica = None
         self.erro = None
+        self.sucesso = None
         self.finalizado = False
         self.leilao = {
             produto = None,
@@ -35,7 +36,7 @@ class Client:
     def envia_requisicao_entrada(self, cpf: str):
         try:
             self.client_socket.connect((self.HOST, self.PORT))
-            dados = {"CPF": cpf}
+            dados = {"cpf": cpf}
             json_dados = json.dumps(dados)  # Converter para JSON
             self.client_socket.sendall(json_dados.encode('utf-8'))
             self.recebe_dados_entrada()
@@ -65,6 +66,32 @@ class Client:
         except Exception as e:
             print(f"Erro ao receber dados de entrada: {e}")
 
+    def envia_lance(self, lance):
+        try:
+            self.client_socket.connect((self.HOST, self.PORT))
+            dados = {"lance": float(lance)}
+            textoClaro = json.dumps(dados) 
+            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
+            self.client_socket.sendall(textoCriptografado.encode('utf-8'))
+            return self.recebe_confirmacao_lance()
+        except Exception as e:
+            print(f"Erro ao enviar requisição: {e}")
+            return False
+        finally:
+            self.client_socket.close()
+
+    def recebe_confirmacao_lance():
+        data = self.client_socket.recv(1024)  # Recebe os dados sem criptografia
+        textoCriptografado = data.decode('utf-8')
+        textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
+        dados_json = json.loads(textoClaro) 
+
+        self.erro = dados_json['erro']:
+        if not dados_json['sucesso']:
+            return False
+
+        self.sucesso = '[SUCESSO]: Você tem o mair lance no momento'
+
     def recebe_infos_produto_leiloado(self):
         if not self.multicast_address:
             print("Endereço multicast não definido.")
@@ -81,15 +108,15 @@ class Client:
         while True:
             data, addr = recepcao_socket.recvfrom(1024)
             textoCriptografado = data.decode('utf-8')
-            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, 'chave')
+            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
 
             dados_json = json.loads(textoClaro)
 
-            self.leilao['produto'] = dados_json['produto']
-            self.leilao['tempo'] = dados_json['tempo']
-            self.leilao['lanceAtual'] = dados_json['maior_lance']
-            self.leilao['stepLances'] = dados_json['step_lances']
-            self.finalizado = dados_json['finalizado']
+            self.leilao['produto'] = dados_json['data']['produto']
+            self.leilao['tempo'] = dados_json['data']['tempo']
+            self.leilao['lanceAtual'] = dados_json['data']['maior_lance']
+            self.leilao['stepLances'] = dados_json['data']['step_lances']
+            self.finalizado = dados_json['data']['finalizado']
             
             print(f"Informações do leilão recebidas de {addr}: {data.decode('utf-8')}")
 

@@ -1,16 +1,16 @@
 {
     "participantes": [
         {
-            "cpf": "12345", "chave_publica": "abacaxi"
+            "cpf": "12345", "chave_publica": "abacaxi", "addres": ""
         },
         {
-            "cpf": "123456", "chave_publica": "manga"
+            "cpf": "123456", "chave_publica": "manga", "addres": ""
         },
         {
-            "cpf": "1234567", "chave_publica": "pera"
+            "cpf": "1234567", "chave_publica": "pera", "addres": ""
         },
         {
-            "cpf": "12345678", "chave_publica": "banana"
+            "cpf": "12345678", "chave_publica": "banana", "addres": ""
         }
     ],
 
