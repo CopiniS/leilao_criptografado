@@ -16,8 +16,9 @@ class Server:
         self.multicast_socket = None
 
         with open('participantes.json', 'r', encoding='utf-8') as file:
-            self.participantes = json.load(file)['participantes']
-            self.chave_simetrica = json.load(file)['chave_simetrica']
+            json_data = json.load(file)
+            self.participantes = json_data['participantes']
+            self.chave_simetrica = json_data['chave_simetrica']
 
 
     def cria_multicast(self, grupo_multicast="224.0.0.1", porta_multicast=5007):
@@ -39,7 +40,6 @@ class Server:
             "usuario": None
         }
         self.leilao_ativo = True
-        self.
         print(f"Item publicado: {self.item_leilao}")
 
         threading.Thread(target=self.gerencia_tempo).start()
@@ -48,7 +48,6 @@ class Server:
     def gerencia_tempo(self):
         tempo_restante = self.item_leilao["tempo"]
         while self.leilao_ativo and tempo_restante.total_seconds() > 0:
-            print(f"Tempo restante: {tempo_restante}")
             self.envia_atualizacao()
             tempo_restante -= timedelta(seconds=1)
             self.item_leilao["tempo"] = tempo_restante
@@ -76,7 +75,6 @@ class Server:
             textoCriptografado = data.decode("utf-8")
             textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
             dados_json = json.loads(textoClaro)
-            print(f"Mensagem recebida de {addr}: {mensagem}")
             resposta = self.processa_lance(dados_json, addr)
 
             textoClaro = json.loads(resposta)
@@ -99,44 +97,44 @@ class Server:
         return {'sucesso': True, 'erro': None, 'data': None}
 
     def envia_atualizacao(self, finalizado=False):
-        resposta = {}
-
         if not self.multicast_socket or not self.multicast_address:
-            resposta {'sucesso': False, 'erro': 'Canal multicast não configurado para envio', 'data': None}
+            print('[ERRO]: Canal multicast nao configurado adequadamente')
+            return
 
-        else:
-            status = {
-                "produto": self.item_leilao["nome"],
-                "maior_lance": self.item_leilao["maior_lance"],
-                "tempo": str(self.item_leilao["tempo"]),
-                "step_lances": self.item_leilao['step_lances']
-                "finalizado": finalizado
-            }
+        status = {
+            "produto": self.item_leilao["nome"],
+            "maior_lance": self.item_leilao["maior_lance"],
+            "tempo": str(self.item_leilao["tempo"]),
+            "step_lances": self.item_leilao['step_lances'],
+            "finalizado": finalizado
+        }
 
-            resposta = {'sucesso': True, 'erro': None, 'data': status}
+        resposta = {'sucesso': True, 'erro': None, 'data': status}
 
         textoClaro = json.dumps(resposta)
         textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
 
+        print('resposta enviada: ', textoCriptografado)
         self.multicast_socket.sendto(textoCriptografado.encode('utf-8'), self.multicast_address)
+
+    def verificacoes_entrada(self, resultado, addr):
+        if not self.leilao_ativo:
+            return {'sucesso': False, 'erro': 'Nenhum Item está sendo leiloado no momento', 'data': None}
+
+        if not resultado:
+            return {'sucesso': False, 'erro': 'CPF não cadastrado', 'data': None}
+
+        resultado['addres'] = addr
+        return {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': self.chave_simetrica, 'endereco_multicast': self.multicast_address}}
 
     def handle_client(self, conn, addr):
         data = conn.recv(1024).decode('utf-8')
-        resposta = {}
-        if not self.leilao_ativo:
-            resposta {'sucesso': False, 'erro': 'Nenhum Item está sendo leiloado no momento', 'data': None}
-
+        
         dados_json = json.loads(data) 
-
         resultado = next((participante for participante in self.participantes if participante["cpf"] == dados_json['cpf']), None)
-
-        if not resultado:
-            resposta = {'sucesso': False, 'erro': 'CPF não cadastrado', 'data': None}
-
-        else:
-            resultado['addres'] = addr
-            resposta = {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': self.chave_simetrica, 'endereco_multicast': self.multicast_address}}
-
+        
+        
+        resposta = self.verificacoes_entrada(resultado, addr)
         textoClaro = json.dumps(resposta)
         textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
         conn.sendall(textoCriptografado.encode('utf-8'))

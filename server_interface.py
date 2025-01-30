@@ -7,10 +7,12 @@ import time
 
 class AuctionInterface:
     def __init__(self):
+
+        self.server = Server("127.0.0.1", 65432)
         # Inicia o servidor em uma thread separada
         Thread(target=self.server.main, daemon=True).start()
 
-        self.server = Server("127.0.0.1", 65432)
+        
         self.root = tk.Tk()
         self.root.title("Servidor de Leilão")
         self.create_start_screen()

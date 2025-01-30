@@ -32,24 +32,23 @@ class LeilaoCliente:
             messagebox.showerror("Erro", "CPF não pode estar vazio.")
             return
         
-        if self.client.envia_requisicao_entrada():
-            self.multicast_endereco = resposta["endereco_multicast"]
-            self.chave = resposta["chave_simetrica"]
+        if self.client.envia_requisicao_entrada(cpf):
             self.build_leilao_screen()
         else:
-            messagebox.showerror("Erro", "CPF inválido ou não autorizado.")
+            messagebox.showerror("Erro", self.client.erro)
+            self.client.erro = None
 
     def build_leilao_screen(self):
         for widget in self.root.winfo_children():
             widget.destroy()
         
-        self.tempo_label = tk.Label(self.root, text=f"Tempo restante: {self.client.leilao["tempo"]}")
+        self.tempo_label = tk.Label(self.root, text=f"Tempo restante: {self.client.leilao['tempo']}")
         self.tempo_label.pack(pady=5)
         
-        self.produto_label = tk.Label(self.root, text=f"Produto: {self.client.leilao["produto"]}")
+        self.produto_label = tk.Label(self.root, text=f"Produto: {self.client.leilao['produto']}")
         self.produto_label.pack(pady=5)
         
-        self.lance_label = tk.Label(self.root, text=f"Lance atual: {self.client.leilao["lanceAtual"]}")
+        self.lance_label = tk.Label(self.root, text=f"Lance atual: {self.client.leilao['lance_atual']}")
         self.lance_label.pack(pady=5)
         
         tk.Label(self.root, text="Digite seu lance:").pack(pady=5)
@@ -64,10 +63,12 @@ class LeilaoCliente:
         if not lance.isdigit():
             messagebox.showerror("Erro", "Insira um valor válido.")
             return
+        if(not self.client.envia_lance(lance)):
+            messagebox.showerror("Erro", self.client.erro)
+            self.client.erro = None
         
-        # Simular envio do lance para o servidor
-        print(f"Lance de R${lance} enviado!")
         messagebox.showinfo("Sucesso", f"Lance de R${lance} enviado com sucesso!")
+
 
     def atualizar_tela(self, dados):
         self.tempo_label.config(text=f"Tempo restante: {dados['tempo']}")
