@@ -10,6 +10,8 @@ class Client:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.multicast_address = None
         self.chave_simetrica = None
+        self.erro = None
+        self.finalizado = False
         self.leilao = {
             produto = None,
             tempo = None,
@@ -48,10 +50,15 @@ class Client:
         try:
             data = self.client_socket.recv(1024)  # Recebe os dados sem criptografia
             textoCriptografado = data.decode('utf-8')
-            textoClaro = criptografia.descriptografaAsimetrica(textoCriptografado)
+            textoClaro = criptografia.descriptografaAsimetrica(textoCriptografado, 'chave')
             dados_json = json.loads(textoClaro) 
-            self.multicast_address = dados_json["endereco_multicast"]
-            self.chave_simetrica = dados_json["chave_simetrica"]
+
+            self.erro = textoClaro['erro']:
+            if not textoClaro['sucesso']:
+                return False
+
+            self.multicast_address = dados_json['data']["endereco_multicast"]
+            self.chave_simetrica = dados_json['data']["chave_simetrica"]
             
             print(f"Endereço multicast recebido: {self.multicast_address}")
             print(f"Chave simétrica recebida: {self.chave_simetrica}")
@@ -74,11 +81,16 @@ class Client:
         while True:
             data, addr = recepcao_socket.recvfrom(1024)
             textoCriptografado = data.decode('utf-8')
-            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado)
-            leilao['produto'] = textoClaro['produto']
-            leilao['tempo'] = textoClaro['tempo']
-            leilao['lanceAtual'] = textoClaro['lanceAtual']
-            leilao['stepLances'] = textoClaro['stepLances']
+            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, 'chave')
+
+            dados_json = json.loads(textoClaro)
+
+            self.leilao['produto'] = dados_json['produto']
+            self.leilao['tempo'] = dados_json['tempo']
+            self.leilao['lanceAtual'] = dados_json['maior_lance']
+            self.leilao['stepLances'] = dados_json['step_lances']
+            self.finalizado = dados_json['finalizado']
+            
             print(f"Informações do leilão recebidas de {addr}: {data.decode('utf-8')}")
 
     def entra_multicast(self):

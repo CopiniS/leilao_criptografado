@@ -1,0 +1,18 @@
+{
+    "participantes": [
+        {
+            "cpf": "12345", "chave_publica": "abacaxi"
+        },
+        {
+            "cpf": "123456", "chave_publica": "manga"
+        },
+        {
+            "cpf": "1234567", "chave_publica": "pera"
+        },
+        {
+            "cpf": "12345678", "chave_publica": "banana"
+        }
+    ],
+
+    "chave_simetrica": "estonia"
+}

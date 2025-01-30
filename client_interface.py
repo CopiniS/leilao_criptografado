@@ -59,10 +59,6 @@ class LeilaoCliente:
         
         self.enviar_lance_button = tk.Button(self.root, text="Enviar Lance", command=self.enviar_lance)
         self.enviar_lance_button.pack(pady=5)
-        
-        # Simular recebimento de atualizações do leilão
-        self.thread_receber_multicast = threading.Thread(target=self.receber_multicast, daemon=True)
-        self.thread_receber_multicast.start()
 
     def enviar_lance(self):
         lance = self.lance_entry.get()

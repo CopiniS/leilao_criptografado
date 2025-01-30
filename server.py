@@ -2,13 +2,15 @@ import socket
 import struct
 import threading
 from datetime import timedelta
+import json
+import criptografia
 
 class Server:
     def __init__(self, host: str, port: int):
         self.HOST = host
         self.PORT = port
         self.clients = {}
-        self.item_leilao = None
+        self.item_leilao = {}
         self.leilao_ativo = False
         self.multicast_address = None
         self.multicast_socket = None
@@ -32,6 +34,7 @@ class Server:
             "usuario": None
         }
         self.leilao_ativo = True
+        self.
         print(f"Item publicado: {self.item_leilao}")
 
         threading.Thread(target=self.gerencia_tempo).start()
@@ -85,19 +88,56 @@ class Server:
             print(f"Formato de mensagem inválido: {mensagem}")
 
     def envia_atualizacao(self, finalizado=False):
-        if not self.multicast_socket or not self.multicast_address:
-            print("Canal multicast não configurado para envio.")
-            return
+        resposta = {}
 
-        status = {
-            "nome": self.item_leilao["nome"],
-            "maior_lance": self.item_leilao["maior_lance"],
-            "usuario": self.item_leilao["usuario"],
-            "tempo_restante": str(self.item_leilao["tempo"]),
-            "finalizado": finalizado
-        }
-        mensagem = str(status).encode("utf-8")
-        self.multicast_socket.sendto(mensagem, self.multicast_address)
+        if not self.multicast_socket or not self.multicast_address:
+            resposta {'sucesso': False, 'erro': 'Canal multicast não configurado para envio', 'data': None}
+
+        else:
+            with open('participantes.json', 'r', encoding='utf-8') as file:
+            chave_simetrica = json.load(file)['chave_simetrica']
+
+            status = {
+                "produto": self.item_leilao["nome"],
+                "maior_lance": self.item_leilao["maior_lance"],
+                "tempo": str(self.item_leilao["tempo"]),
+                "step_lances": self.item_leilao['step_lances']
+                "finalizado": finalizado
+            }
+
+            resposta = {'sucesso': True, 'erro': None, 'data': status}
+
+        textoClaro = json.dumps(resposta)
+        textoCriptografado = criptografia.criptografaSimetrica(textoClaro, chave_simetrica)
+
+        self.multicast_socket.sendto(textoCriptografado.encode('utf-8'), self.multicast_address)
+
+    def handle_client(self, conn, addr):
+        data = conn.recv(1024).decode('utf-8')
+        resposta = {}
+        if not self.leilao_ativo:
+            resposta {'sucesso': False, 'erro': 'Nenhum Item está sendo leiloado no momento', 'data': None}
+
+        dados_json = json.loads(data) 
+
+        with open('participantes.json', 'r', encoding='utf-8') as file:
+            participantes = json.load(file)['participantes']
+            chave_simetrica = json.load(file)['chave_simetrica']
+
+        resultado = next((participante for participante in participantes if participante["cpf"] == dados_json['cpf']), None)
+
+        if not resultado:
+            resposta = {'sucesso': False, 'erro': 'CPF não cadastrado', 'data': None}
+
+        else:
+            resposta = {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': chave_simetrica, 'endereco_multicast': self.multicast_address}}
+
+        textoClaro = json.dumps(resposta)
+        textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
+        conn.sendall(textoCriptografado.encode('utf-8'))
+
+        conn.close()
+
 
     def main(self):
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -109,11 +149,6 @@ class Server:
             conn, addr = server_socket.accept()
             print(f"Conectado por {addr}")
             threading.Thread(target=self.handle_client, args=(conn, addr)).start()
-
-    def handle_client(self, conn, addr):
-        data = conn.recv(1024)
-        print(f"Mensagem recebida: {data.decode()}")
-        conn.close()
 
 if __name__ == "__main__":
     server = Server("127.0.0.1", 65432)

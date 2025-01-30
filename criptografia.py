@@ -1,12 +1,12 @@
 
-def criptografaSimetrica(textoClaro: str) -> str:
+def criptografaSimetrica(textoClaro: str, chave: str) -> str:
     return textoClaro
 
-def descriptografaSimetrica(textoCriptografado: str) -> str:
+def descriptografaSimetrica(textoCriptografado: str, chave: str) -> str:
     return textoCriptografado
 
-def criptografaAssimetrica(textoClaro: str) -> str:
+def criptografaAssimetrica(textoClaro: str, chave: str) -> str:
     return textoClaro
 
-def descriptografaAsimetrica(textoCriptografado: str) -> str:
+def descriptografaAsimetrica(textoCriptografado: str, chave: str) -> str:
     return textoCriptografado
