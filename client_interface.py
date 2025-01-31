@@ -58,6 +58,18 @@ class LeilaoCliente:
         self.enviar_lance_button = tk.Button(self.root, text="Enviar Lance", command=self.enviar_lance)
         self.enviar_lance_button.pack(pady=5)
 
+        # Inicia a atualização automática
+        self.atualiza_labels()
+
+    def atualiza_labels(self):
+        """Atualiza os labels da interface com os novos dados do leilão."""
+        self.tempo_label.config(text=f"Tempo restante: {self.client.leilao['tempo']}")
+        self.produto_label.config(text=f"Produto: {self.client.leilao['produto']}")
+        self.lance_label.config(text=f"Lance atual: {self.client.leilao['lance_atual']}")
+        
+        # Agendar próxima atualização em 1 segundo (1000 ms)
+        self.root.after(1000, self.atualiza_labels)
+
     def enviar_lance(self):
         lance = self.lance_entry.get()
         if not lance.isdigit():

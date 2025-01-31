@@ -2,6 +2,7 @@ import socket
 import struct
 import json
 import criptografia
+import threading
 
 class Client:
     def __init__(self, hostServer: str, portServer: int):
@@ -102,9 +103,9 @@ class Client:
         print('log 0')
         recepcao_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         recepcao_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        recepcao_socket.bind((self.multicast_address, 5007))
+        recepcao_socket.bind(("0.0.0.0", 5007))
         print('log 1')
-        grupo = socket.inet_aton(self.multicast_address)
+        grupo = socket.inet_aton(self.multicast_address[0])  # Pega apenas o IP
         mreq = struct.pack("4sL", grupo, socket.INADDR_ANY)
         recepcao_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         print('log 2')
@@ -129,4 +130,5 @@ class Client:
 
     def entra_multicast(self):
         print(f"Entrando no grupo multicast: {self.multicast_address}")
-        self.recebe_infos_produto_leiloado()
+        thread = threading.Thread(target=self.recebe_infos_produto_leiloado, daemon=True)
+        thread.start()
