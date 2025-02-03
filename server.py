@@ -43,7 +43,7 @@ class Server:
         print(f"Item publicado: {self.item_leilao}")
 
         threading.Thread(target=self.gerencia_tempo).start()
-        threading.Thread(target=self.escuta_lances).start()
+        # threading.Thread(target=self.escuta_lances).start()
 
     def gerencia_tempo(self):
         tempo_restante = self.item_leilao["tempo"]
@@ -57,30 +57,30 @@ class Server:
         self.envia_atualizacao(finalizado=True)
         print("Leilão encerrado.")
 
-    def escuta_lances(self):
-        if not self.multicast_address:
-            print("Canal multicast não configurado.")
-            return
+    # def escuta_lances(self):
+    #     if not self.multicast_address:
+    #         print("Canal multicast não configurado.")
+    #         return
 
-        recepcao_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        recepcao_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        recepcao_socket.bind(('0.0.0.0', self.multicast_address[1]))
+    #     recepcao_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    #     recepcao_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #     recepcao_socket.bind(('0.0.0.0', self.multicast_address[1]))
 
-        grupo = socket.inet_aton(self.multicast_address[0])
-        mreq = struct.pack("4sL", grupo, socket.INADDR_ANY)
-        recepcao_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    #     grupo = socket.inet_aton(self.multicast_address[0])
+    #     mreq = struct.pack("4sL", grupo, socket.INADDR_ANY)
+    #     recepcao_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        while self.leilao_ativo:
-            data, addr = recepcao_socket.recvfrom(1024)
-            textoCriptografado = data.decode("utf-8")
-            textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
-            dados_json = json.loads(textoClaro)
-            print('recebido lance: ', dados_json)
-            resposta = self.processa_lance(dados_json, addr)
-            self.envia_resposta_unicast(resposta, addr)
+    #     while self.leilao_ativo:
+    #         data, addr = recepcao_socket.recvfrom(1024)
+    #         textoCriptografado = data.decode("utf-8")
+    #         textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
+    #         dados_json = json.loads(textoClaro)
+    #         print('recebido lance: ', dados_json)
+    #         resposta = self.processa_lance(dados_json, addr)
+    #         self.envia_resposta_unicast(resposta, addr)
 
-            # Envia resposta apenas para o remetente do lance
-            recepcao_socket.sendto(textoCriptografado.encode("utf-8"), addr)
+    #         # Envia resposta apenas para o remetente do lance
+    #         recepcao_socket.sendto(textoCriptografado.encode("utf-8"), addr)
 
     def envia_resposta_unicast(self, resposta, cliente_addr):
         """ Envia uma resposta diretamente para o cliente que enviou o lance (unicast) """
@@ -147,15 +147,24 @@ class Server:
     def handle_client(self, conn, addr):
         data = conn.recv(1024).decode('utf-8')
         
-        dados_json = json.loads(data) 
-        resultado = next((participante for participante in self.participantes if participante["cpf"] == dados_json['cpf']), None)
-        
-        
-        resposta = self.verificacoes_entrada(resultado, addr)
-        textoClaro = json.dumps(resposta)
-        textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
-        conn.sendall(textoCriptografado.encode('utf-8'))
+        dados_json = json.loads(data)
+        if dados_json["cpf"]: 
+            resultado = next((participante for participante in self.participantes if participante["cpf"] == dados_json['cpf']), None)
+            
+            
+            resposta = self.verificacoes_entrada(resultado, addr)
+            textoClaro = json.dumps(resposta)
+            textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
+            conn.sendall(textoCriptografado.encode('utf-8'))
 
+        elif dados_json["lance"]:
+            resposta = self.processa_lance(dados_json, addr)
+            textoClaro = json.dumps(resposta)
+            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
+            conn.sendall(textoCriptografado.encode('utf-8'))
+
+        else:
+            print('[MENSAGEM INESPERADA]: a mensagem nao continha as informações esperadas')
         conn.close()
 
 

@@ -73,46 +73,29 @@ class Client:
 
     def envia_lance(self, lance):
         try:
-            if not self.multicast_address:
-                print('[ERRO]: Canal multicast não configurado adequadamente')
-                return False
-
-            # Criar um socket UDP para enviar ao multicast
-            envio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            envio_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
-
-            dados = {"lance": float(lance)}
-            textoClaro = json.dumps(dados)
-            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
-
-            # Enviar o lance para o grupo multicast
-            envio_socket.sendto(textoCriptografado.encode('utf-8'), tuple(self.multicast_address))
-            print(f"[CLIENTE] Lance enviado via multicast: {textoCriptografado}")
-
+            self.client_socket.connect((self.HOST, self.PORT))
+            dados = {"lance": lance}
+            texto_claro = json.dumps(dados)  
+            texto_criptografado = criptografia.criptografaSimetrica(texto_claro, self.chave_simetrica)
+            self.client_socket.sendall(texto_criptografado.encode('utf-8'))
             return self.recebe_confirmacao_lance_unicast()
         except Exception as e:
-            print(f"Erro ao enviar lance: {e}")
+            print(f"Erro ao enviar requisição: {e}")
             return False
         finally:
-            envio_socket.close()
+            self.client_socket.close()
 
 
     def recebe_confirmacao_lance_unicast(self):
-        """ Cliente recebe respostas privadas do servidor via unicast """
-        unicast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        unicast_socket.bind(("0.0.0.0", 0))  # 0 deixa o SO escolher a porta automaticamente
-        self.meu_endereco = unicast_socket.getsockname()
-
-        print('[CLIENTE] Aguardando resposta do servidor...')
-
-        while True:
-            data, addr = unicast_socket.recvfrom(1024)
+        try:
+            data = self.client_socket.recv(1024)  # Recebe os dados sem criptografia
             textoCriptografado = data.decode('utf-8')
             textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
-            resposta = json.loads(textoClaro)
-            print('reposta recebida do lance: ', resposta)
-
-            return resposta
+            dados_json = json.loads(textoClaro) 
+            return dados_json
+        except Exception as e:
+            print(f"Erro ao enviar ao enviar lance: {e}")
+            return False
 
 
     def recebe_infos_produto_leiloado(self):
