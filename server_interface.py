@@ -70,7 +70,6 @@ class AuctionInterface:
         self.label_lance_atual.pack()
         self.label_usuario = tk.Label(self.root, text=f"Usuário: {self.server.item_leilao['usuario']}", font=("Arial", 14))
         self.label_usuario.pack()
-
         # Atualização do tempo restante
         self.update_timer()
 
@@ -78,12 +77,20 @@ class AuctionInterface:
         if self.server.leilao_ativo:
             tempo = self.server.item_leilao['tempo']
             if tempo.total_seconds() > 0:
+                # Atualiza os rótulos
                 self.label_tempo.config(text=f"Tempo restante: {tempo}")
+                self.label_lance_atual.config(text=f"Lance atual: {self.server.item_leilao['maior_lance']}")
+                self.label_usuario.config(text=f"Usuário: {self.server.item_leilao['usuario']}")
+
+                # Diminui o tempo restante
                 self.server.item_leilao['tempo'] -= timedelta(seconds=1)
+                
+                # Chama novamente após 1 segundo
                 self.root.after(1000, self.update_timer)
             else:
                 self.server.leilao_ativo = False
                 self.end_auction()
+
 
     def end_auction(self):
         messagebox.showinfo("Leilão Finalizado", "O leilão foi encerrado.")
