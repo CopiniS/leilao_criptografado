@@ -8,6 +8,7 @@ class Client:
     def __init__(self, hostServer: str, portServer: int):
         self.HOST = hostServer  # Endereço IP do servidor
         self.PORT = portServer  # Porta do servidor
+        self.PORT_LANCES = None
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.meu_endereco = None
         self.multicast_address = None
@@ -73,6 +74,7 @@ class Client:
 
             self.multicast_address = dados_json['data']["endereco_multicast"]
             self.chave_simetrica = dados_json['data']["chave_simetrica"]
+            self.PORT_LANCES = dados_json['data']["port_lances"]
             
             print(f"Endereço multicast recebido: {self.multicast_address}")
             print(f"Chave simétrica recebida: {self.chave_simetrica}")
@@ -87,11 +89,12 @@ class Client:
         try:
             print('log 1')
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((self.HOST, self.PORT))
+            client_socket.connect((self.HOST, self.PORT_LANCES))
             dados = {"lance": lance, "cpf_no_lance": self.cpf}
             texto_claro = json.dumps(dados)  
             texto_criptografado = criptografia.criptografaSimetrica(texto_claro, self.chave_simetrica)
             print('log 2')
+            print('enviando esse texto:', texto_criptografado)
             client_socket.sendall(texto_criptografado.encode('utf-8'))
             print('enviado o lance: ', lance)
             return self.recebe_confirmacao_lance_unicast(client_socket)

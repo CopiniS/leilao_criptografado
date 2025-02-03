@@ -8,7 +8,7 @@ import time
 class AuctionInterface:
     def __init__(self):
 
-        self.server = Server("127.0.0.1", 65432)
+        self.server = Server("127.0.0.1", 65432, 65433)
         # Inicia o servidor em uma thread separada
         Thread(target=self.server.main, daemon=True).start()
 

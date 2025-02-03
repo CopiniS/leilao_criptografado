@@ -1,14 +1,15 @@
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad, unpad
+from Crypto.Random import get_random_bytes
 import base64
 
 def criptografaSimetrica(textoClaro: str, chave: str) -> str:
     chave_bytes = chave.encode("utf-8").ljust(16, b'0')[:16]  # Ajusta a chave para 16 bytes
-    cipher = AES.new(chave_bytes, AES.MODE_CBC)
-    iv = cipher.iv  # Vetor de inicialização
-    textoCriptografado = cipher.encrypt(pad(textoClaro.encode("utf-8"), AES.block_size))
-    return base64.b64encode(iv + textoCriptografado).decode("utf-8")
+    iv = get_random_bytes(16)  # Gerar um IV de 16 bytes
+    cipher = AES.new(chave_bytes, AES.MODE_CBC, iv)  # Passa o IV explicitamente
+    textoCriptografado = cipher.encrypt(pad(textoClaro.encode("utf-8"), AES.block_size))  # Aplica padding
+    return base64.b64encode(iv + textoCriptografado).decode("utf-8")  # Retorna o IV + texto criptografado em base64
 
 def descriptografaSimetrica(textoCriptografado: str, chave: str) -> str:
     chave_bytes = chave.encode("utf-8").ljust(16, b'0')[:16]
