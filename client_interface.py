@@ -79,7 +79,7 @@ class LeilaoCliente:
         if(not resposta):
             messagebox.showerror("Erro", "Servidor nao retornou a mensagem")
             self.client.erro = None
-        elif not resposta["success"]:
+        elif not resposta["sucesso"]:
             messagebox.showerror("Erro", resposta["erro"])
         else:
             messagebox.showinfo("Sucess", "O seu lance foi aceito!")

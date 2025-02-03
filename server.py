@@ -4,6 +4,7 @@ import threading
 from datetime import timedelta
 import json
 import criptografia
+import time
 
 class Server:
     def __init__(self, host: str, port: int):
@@ -14,6 +15,7 @@ class Server:
         self.leilao_ativo = False
         self.multicast_address = None
         self.multicast_socket = None
+        self.lock = threading.Lock()
 
         with open('participantes.json', 'r', encoding='utf-8') as file:
             json_data = json.load(file)
@@ -45,17 +47,20 @@ class Server:
         threading.Thread(target=self.gerencia_tempo).start()
         # threading.Thread(target=self.escuta_lances).start()
 
+
     def gerencia_tempo(self):
         tempo_restante = self.item_leilao["tempo"]
         while self.leilao_ativo and tempo_restante.total_seconds() > 0:
             self.envia_atualizacao()
             tempo_restante -= timedelta(seconds=1)
             self.item_leilao["tempo"] = tempo_restante
-            threading.Event().wait(1)
+            
+            time.sleep(1)  # Garantir que o tempo seja atualizado corretamente
 
         self.leilao_ativo = False
         self.envia_atualizacao(finalizado=True)
         print("Leilão encerrado.")
+
 
     # def escuta_lances(self):
     #     if not self.multicast_address:
@@ -102,30 +107,32 @@ class Server:
             envio_socket.close()
 
 
-    def processa_lance(self, dados_json, addr):
-        lance = dados_json['lance']
+    def processa_lance(self, dados_json):
         print('entra em processa lance')
-        if lance < self.item_leilao['maior_lance'] + self.item_leilao['step_lances']:
-            return {'sucesso': False, 'erro': '[ERRO]: Lance enviado menor do que o obrigatório', 'data': None}
+        lance = float(dados_json['lance'])
+        cpf = dados_json['cpf_no_lance']
+        
+        with self.lock:  # Garante que apenas uma thread altere `self.item_leilao`
+            if lance < self.item_leilao['maior_lance'] + self.item_leilao['step_lances']:
+                return {'sucesso': False, 'erro': '[ERRO]: Lance enviado menor do que o obrigatório', 'data': None}
 
-        self.item_leilao["maior_lance"] = lance
-        resultado = next((participante for participante in self.participantes if participante["addres"] == addr), None)
-        self.item_leilao["usuario"] = resultado['cpf']
-        print(f"Novo maior lance: {lance} de {resultado}")
+            self.item_leilao["maior_lance"] = lance
+            self.item_leilao["usuario"] = cpf
+            print(f"Novo maior lance: {self.item_leilao['maior_lance']} de {self.item_leilao['usuario']}")
         return {'sucesso': True, 'erro': None, 'data': None}
 
     def envia_atualizacao(self, finalizado=False):
         if not self.multicast_socket or not self.multicast_address:
             print('[ERRO]: Canal multicast nao configurado adequadamente')
             return
-
-        status = {
-            "produto": self.item_leilao["nome"],
-            "maior_lance": self.item_leilao["maior_lance"],
-            "tempo": str(self.item_leilao["tempo"]),
-            "step_lances": self.item_leilao['step_lances'],
-            "finalizado": finalizado
-        }
+        with self.lock:
+            status = {
+                "produto": self.item_leilao["nome"],
+                "maior_lance": self.item_leilao["maior_lance"],
+                "tempo": str(self.item_leilao["tempo"]),
+                "step_lances": self.item_leilao['step_lances'],
+                "finalizado": finalizado
+            }
 
         resposta = {'sucesso': True, 'erro': None, 'data': status}
 
@@ -144,28 +151,45 @@ class Server:
         resultado['addres'] = addr
         return {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': self.chave_simetrica, 'endereco_multicast': self.multicast_address}}
 
+
     def handle_client(self, conn, addr):
-        data = conn.recv(1024).decode('utf-8')
-        
-        dados_json = json.loads(data)
-        if dados_json["cpf"]: 
-            resultado = next((participante for participante in self.participantes if participante["cpf"] == dados_json['cpf']), None)
-            
-            
-            resposta = self.verificacoes_entrada(resultado, addr)
-            textoClaro = json.dumps(resposta)
-            textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
-            conn.sendall(textoCriptografado.encode('utf-8'))
+        try:
+            data = conn.recv(1024).decode('utf-8')
+            print('recebe unicast: ', data)
 
-        elif dados_json["lance"]:
-            resposta = self.processa_lance(dados_json, addr)
-            textoClaro = json.dumps(resposta)
-            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
-            conn.sendall(textoCriptografado.encode('utf-8'))
+            dados_json = json.loads(data)
 
-        else:
-            print('[MENSAGEM INESPERADA]: a mensagem nao continha as informações esperadas')
-        conn.close()
+            if "cpf" in dados_json: 
+                print('entra em cpf')
+                resultado = next((p for p in self.participantes if p["cpf"] == dados_json['cpf']), None)
+                
+                if resultado is None:
+                    resposta = {"erro": "CPF não encontrado"}
+                    textoClaro = json.dumps(resposta)
+                else:
+                    resposta = self.verificacoes_entrada(resultado, addr)
+                    textoClaro = json.dumps(resposta)
+                    textoCriptografado = criptografia.criptografaAssimetrica(textoClaro, resultado['chave_publica'])
+
+                conn.sendall(textoCriptografado.encode('utf-8') if resultado else textoClaro.encode('utf-8'))
+
+            elif "lance" in dados_json:
+                print('entra aqui em lance')
+                resposta = self.processa_lance(dados_json)
+                textoClaro = json.dumps(resposta)
+                textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
+                conn.sendall(textoCriptografado.encode('utf-8'))
+                print('retorna resposta do lance')
+
+            else:
+                print('[MENSAGEM INESPERADA]: a mensagem não continha as informações esperadas')
+
+        except json.JSONDecodeError:
+            print("[ERRO]: Falha ao decodificar JSON")
+        except Exception as e:
+            print(f"[ERRO]: {e}")
+        finally:
+            conn.close()
 
 
     def main(self):

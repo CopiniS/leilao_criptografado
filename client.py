@@ -11,6 +11,7 @@ class Client:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.meu_endereco = None
         self.multicast_address = None
+        self.cpf = None
         self.chave_simetrica = None
         self.erro = None
         self.sucesso = None
@@ -38,6 +39,7 @@ class Client:
     def envia_requisicao_entrada(self, cpf: str):
         try:
             self.client_socket.connect((self.HOST, self.PORT))
+            self.cpf = cpf
             dados = {"cpf": cpf}
             json_dados = json.dumps(dados)  # Converter para JSON
             self.client_socket.sendall(json_dados.encode('utf-8'))
@@ -73,28 +75,33 @@ class Client:
 
     def envia_lance(self, lance):
         try:
-            self.client_socket.connect((self.HOST, self.PORT))
-            dados = {"lance": lance}
+            print('log 1')
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((self.HOST, self.PORT))
+            dados = {"lance": lance, "cpf_no_lance": self.cpf}
             texto_claro = json.dumps(dados)  
             texto_criptografado = criptografia.criptografaSimetrica(texto_claro, self.chave_simetrica)
-            self.client_socket.sendall(texto_criptografado.encode('utf-8'))
-            return self.recebe_confirmacao_lance_unicast()
+            print('log 2')
+            client_socket.sendall(texto_criptografado.encode('utf-8'))
+            print('enviado o lance: ', lance)
+            return self.recebe_confirmacao_lance_unicast(client_socket)
         except Exception as e:
             print(f"Erro ao enviar requisição: {e}")
             return False
         finally:
-            self.client_socket.close()
+            client_socket.close()
 
 
-    def recebe_confirmacao_lance_unicast(self):
+    def recebe_confirmacao_lance_unicast(self, client_socket):
         try:
-            data = self.client_socket.recv(1024)  # Recebe os dados sem criptografia
+            data = client_socket.recv(1024)  # Recebe os dados sem criptografia
             textoCriptografado = data.decode('utf-8')
             textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
             dados_json = json.loads(textoClaro) 
+            print('recebido confirmação lance: ', dados_json)
             return dados_json
         except Exception as e:
-            print(f"Erro ao enviar ao enviar lance: {e}")
+            print(f"Erro ao enviar lance: {e}")
             return False
 
 
