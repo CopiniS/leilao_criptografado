@@ -12,6 +12,7 @@ class Client:
         self.meu_endereco = None
         self.multicast_address = None
         self.cpf = None
+        self.chave_privada = None
         self.chave_simetrica = None
         self.erro = None
         self.sucesso = None
@@ -36,10 +37,19 @@ class Client:
         
         self.client_socket.close()
 
+    def buscaChavePrivada(self, cpf):
+        with open('dados_privados.json', 'r', encoding='utf-8') as file:
+            json_data = json.load(file)
+            participantes = json_data['participantes']
+            for p in participantes:
+                if p['cpf'] == cpf:
+                    self.chave_privada = p['chave_privada']
+
     def envia_requisicao_entrada(self, cpf: str):
         try:
             self.client_socket.connect((self.HOST, self.PORT))
             self.cpf = cpf
+            self.buscaChavePrivada(cpf)
             dados = {"cpf": cpf}
             json_dados = json.dumps(dados)  # Converter para JSON
             self.client_socket.sendall(json_dados.encode('utf-8'))
@@ -54,7 +64,7 @@ class Client:
         try:
             data = self.client_socket.recv(1024)  # Recebe os dados sem criptografia
             textoCriptografado = data.decode('utf-8')
-            textoClaro = criptografia.descriptografaAsimetrica(textoCriptografado, 'chave')
+            textoClaro = criptografia.descriptografaAsimetrica(textoCriptografado, self.chave_privada)
             dados_json = json.loads(textoClaro) 
 
             self.erro = dados_json['erro']

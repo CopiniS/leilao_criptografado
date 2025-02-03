@@ -17,7 +17,7 @@ class Server:
         self.multicast_socket = None
         self.lock = threading.Lock()
 
-        with open('participantes.json', 'r', encoding='utf-8') as file:
+        with open('dados_publicos.json', 'r', encoding='utf-8') as file:
             json_data = json.load(file)
             self.participantes = json_data['participantes']
             self.chave_simetrica = json_data['chave_simetrica']
@@ -147,8 +147,6 @@ class Server:
 
         if not resultado:
             return {'sucesso': False, 'erro': 'CPF não cadastrado', 'data': None}
-
-        resultado['addres'] = addr
         return {'sucesso': True, 'erro': None, 'data': {'chave_simetrica': self.chave_simetrica, 'endereco_multicast': self.multicast_address}}
 
 
