@@ -64,7 +64,7 @@ class Server:
 
         recepcao_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         recepcao_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        recepcao_socket.bind((self.multicast_address[0], self.multicast_address[1]))
+        recepcao_socket.bind(('0.0.0.0', self.multicast_address[1]))
 
         grupo = socket.inet_aton(self.multicast_address[0])
         mreq = struct.pack("4sL", grupo, socket.INADDR_ANY)
@@ -75,18 +75,36 @@ class Server:
             textoCriptografado = data.decode("utf-8")
             textoClaro = criptografia.descriptografaSimetrica(textoCriptografado, self.chave_simetrica)
             dados_json = json.loads(textoClaro)
+            print('recebido lance: ', dados_json)
             resposta = self.processa_lance(dados_json, addr)
+            self.envia_resposta_unicast(resposta, addr)
 
-            textoClaro = json.loads(resposta)
-            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
             # Envia resposta apenas para o remetente do lance
             recepcao_socket.sendto(textoCriptografado.encode("utf-8"), addr)
 
-            self.envia_atualizacao()
+    def envia_resposta_unicast(self, resposta, cliente_addr):
+        """ Envia uma resposta diretamente para o cliente que enviou o lance (unicast) """
+        try:
+            envio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+
+            textoClaro = json.dumps(resposta)
+            textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
+
+            print('envia resposta do lance', textoCriptografado)
+
+            envio_socket.sendto(textoCriptografado.encode('utf-8'), cliente_addr)  # Envia direto para o cliente
+            print(f"[SERVIDOR] Resposta enviada para {cliente_addr}: {resposta}")
+
+        except Exception as e:
+            print(f"[SERVIDOR] Erro ao enviar resposta para {cliente_addr}: {e}")
+
+        finally:
+            envio_socket.close()
+
 
     def processa_lance(self, dados_json, addr):
         lance = dados_json['lance']
-
+        print('entra em processa lance')
         if lance < self.item_leilao['maior_lance'] + self.item_leilao['step_lances']:
             return {'sucesso': False, 'erro': '[ERRO]: Lance enviado menor do que o obrigatório', 'data': None}
 
@@ -114,7 +132,6 @@ class Server:
         textoClaro = json.dumps(resposta)
         textoCriptografado = criptografia.criptografaSimetrica(textoClaro, self.chave_simetrica)
 
-        print('resposta enviada: ', textoCriptografado)
         self.multicast_socket.sendto(textoCriptografado.encode('utf-8'), self.multicast_address)
 
     def verificacoes_entrada(self, resultado, addr):

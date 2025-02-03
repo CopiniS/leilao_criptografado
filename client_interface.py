@@ -75,11 +75,14 @@ class LeilaoCliente:
         if not lance.isdigit():
             messagebox.showerror("Erro", "Insira um valor válido.")
             return
-        if(not self.client.envia_lance(lance)):
-            messagebox.showerror("Erro", self.client.erro)
+        resposta = self.client.envia_lance(lance)
+        if(not resposta):
+            messagebox.showerror("Erro", "Servidor nao retornou a mensagem")
             self.client.erro = None
-        
-        messagebox.showinfo("Sucesso", f"Lance de R${lance} enviado com sucesso!")
+        elif not resposta["success"]:
+            messagebox.showerror("Erro", resposta["erro"])
+        else:
+            messagebox.showinfo("Sucess", "O seu lance foi aceito!")
 
 
     def atualizar_tela(self, dados):
