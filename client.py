@@ -5,9 +5,13 @@ import criptografia
 import threading
 
 class Client:
-    def __init__(self, hostServer: str, portServer: int):
-        self.HOST = hostServer  # Endereço IP do servidor
-        self.PORT = portServer  # Porta do servidor
+    def __init__(self):
+
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+
+        self.HOST = config['server_ip']  # Endereço IP do servidor
+        self.PORT = config['server_main_port']  # Porta do servidor
         self.PORT_LANCES = None
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.meu_endereco = None
@@ -39,9 +43,9 @@ class Client:
         self.client_socket.close()
 
     def buscaChavePrivada(self, cpf):
-        with open('dados_privados.json', 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
-            participantes = json_data['participantes']
+        with open('dados_client.json', 'r', encoding='utf-8') as file:
+            dados_client = json.load(file)
+            participantes = dados_client['participantes']
             for p in participantes:
                 if p['cpf'] == cpf:
                     self.chave_privada = p['chave_privada']

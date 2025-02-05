@@ -7,7 +7,7 @@ from client import Client
 
 class LeilaoCliente:
     def __init__(self, root):
-        self.client = Client("127.0.0.1", 65432)
+        self.client = Client()
         self.root = root
         self.root.title("Leilão Online")
         self.cpf = None

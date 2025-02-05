@@ -1,4 +1,8 @@
 {
+    "server_lances_port": 65433,
+    "multicast_ip": "224.0.0.1",
+    "multicast_port" : 5007,
+    "chave_simetrica": "abacate",
     "participantes": [
         {
             "cpf": "1",
@@ -40,6 +44,5 @@
             "cpf": "10",
             "chave_publica": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoMLPCo50+9p07aUb3btd\ngIguxQUXx0am7xHQgs9zJU0vmmfQtLxm+OSCoul1NX9t7SQrjTdkQyV+K00aXh4X\nKdl8cvGfFeItYPL+l1vck+5h3GFVgcTTRJq0qFRYcimxRWaIiGLvWoAqd/PCVGy/\nI4IoDhVPHPvhcdxjIhN4flTbTGy8rYVU2yNVcHIoPlOoUFhzM/Qzk0rnOMg9IsOj\ns7aJhjU01iZgMQ47+8NGgkEKDmUdrNhWzJhxUTy33vR/npyLS7fKQQLR6HbxvH/C\nsvRwpalw0BVGdew0Nd3um121NN41xqoAjI+sMR4WaBIDdRegOug0l8UJXYb0dDlO\nywIDAQAB\n-----END PUBLIC KEY-----\n"
         }
-    ],
-    "chave_simetrica": "abacate"
+    ]
 }

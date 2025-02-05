@@ -7,10 +7,19 @@ import criptografia
 import time
 
 class Server:
-    def __init__(self, host: str, port: int, portLances: int):
-        self.HOST = host
-        self.PORT = port
-        self.PORT_LANCES = portLances
+    def __init__(self):
+
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+
+        with open('dados_server.json', 'r') as f:
+            dados_server = json.load(f)
+
+        self.HOST = config['server_ip']
+        self.PORT = config['server_main_port']
+        self.PORT_LANCES = dados_server['server_lances_port']
+        self.HOST_MULTICAST = dados_server['multicast_ip']
+        self.PORT_MULTICAST = dados_server['multicast_port']
         self.clients = {}
         self.item_leilao = {}
         self.leilao_ativo = False
@@ -18,18 +27,16 @@ class Server:
         self.multicast_socket = None
         self.lock = threading.Lock()
 
-        with open('dados_publicos.json', 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
-            self.participantes = json_data['participantes']
-            self.chave_simetrica = json_data['chave_simetrica']
+        self.participantes = dados_server['participantes']
+        self.chave_simetrica = dados_server['chave_simetrica']
 
 
-    def cria_multicast(self, grupo_multicast="224.0.0.1", porta_multicast=5007):
-        self.multicast_address = (grupo_multicast, porta_multicast)
+    def cria_multicast(self):
+        self.multicast_address = (self.HOST_MULTICAST, self.PORT_MULTICAST)
         self.multicast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         ttl = struct.pack('b', 1)
         self.multicast_socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-        print(f"Canal multicast criado: {grupo_multicast}:{porta_multicast}")
+        print(f"Canal multicast criado: {self.HOST_MULTICAST}:{self.PORT_MULTICAST}")
 
     def publica_item(self, nome: str, lance_inicial: float, step_lances: float, tempo_em_segundos: int):
         self.cria_multicast()
